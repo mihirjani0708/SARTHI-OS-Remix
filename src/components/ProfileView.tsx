@@ -27,9 +27,14 @@ import {
   Upload,
   Check,
   LogOut,
+  Mic,
+  Volume2,
+  VolumeX,
+  Sliders,
+  Gauge,
 } from 'lucide-react';
-import { UserProfile, AICoachMessage, Habit, Task, JournalEntry, NavTab } from '../types';
-import { getTodayDateString } from '../data/initialData';
+import { UserProfile, AICoachMessage, Habit, Task, JournalEntry, NavTab, VoiceSpeed, VoiceLanguage, VoiceSettings } from '../types';
+import { getTodayDateString, DEFAULT_VOICE_SETTINGS } from '../data/initialData';
 import { useUser } from '../context/UserContext';
 import { adminService } from '../services/admin/adminService';
 
@@ -147,6 +152,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     user.notificationsEnabled ?? true
   );
 
+  // Voice Settings States (Sprint 7.1 & Sprint 7.5 & Sprint 7.6)
+  const initialVoice = user.voiceSettings || DEFAULT_VOICE_SETTINGS;
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(initialVoice.enabled);
+  const [autoSpeak, setAutoSpeak] = useState<boolean>(initialVoice.autoSpeak);
+  const [voiceSpeed, setVoiceSpeed] = useState<VoiceSpeed>(initialVoice.speed);
+  const [voiceVolume, setVoiceVolume] = useState<number>(initialVoice.volume);
+  const [voicePitch, setVoicePitch] = useState<number>(initialVoice.pitch ?? 1.0);
+  const [continuousMode, setContinuousMode] = useState<boolean>(initialVoice.continuousMode ?? false);
+  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>(initialVoice.preferredLanguage);
+  const [voiceGender, setVoiceGender] = useState<'default' | 'male' | 'female'>(initialVoice.preferredVoiceGender || 'default');
+
   // Toast / Feedback message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -171,6 +187,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     setTheme(user.theme || 'light');
     setLanguage(user.language || 'english');
     setNotificationsEnabled(user.notificationsEnabled ?? true);
+    
+    const vSettings = user.voiceSettings || DEFAULT_VOICE_SETTINGS;
+    setVoiceEnabled(vSettings.enabled);
+    setAutoSpeak(vSettings.autoSpeak);
+    setVoiceSpeed(vSettings.speed);
+    setVoiceVolume(vSettings.volume);
+    setVoicePitch(vSettings.pitch ?? 1.0);
+    setContinuousMode(vSettings.continuousMode ?? false);
+    setVoiceLanguage(vSettings.preferredLanguage);
+    setVoiceGender(vSettings.preferredVoiceGender || 'default');
   }, [user]);
 
   const showToast = (msg: string) => {
@@ -208,6 +234,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     setTheme(user.theme || 'light');
     setLanguage(user.language || 'english');
     setNotificationsEnabled(user.notificationsEnabled ?? true);
+
+    const vSettings = user.voiceSettings || DEFAULT_VOICE_SETTINGS;
+    setVoiceEnabled(vSettings.enabled);
+    setAutoSpeak(vSettings.autoSpeak);
+    setVoiceSpeed(vSettings.speed);
+    setVoiceVolume(vSettings.volume);
+    setVoicePitch(vSettings.pitch ?? 1.0);
+    setContinuousMode(vSettings.continuousMode ?? false);
+    setVoiceLanguage(vSettings.preferredLanguage);
+    setVoiceGender(vSettings.preferredVoiceGender || 'default');
+
     showToast('Changes reset to last saved profile');
   };
 
@@ -224,6 +261,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       theme,
       language,
       notificationsEnabled,
+      voiceSettings: {
+        enabled: voiceEnabled,
+        autoSpeak,
+        speed: voiceSpeed,
+        volume: voiceVolume,
+        pitch: voicePitch,
+        continuousMode,
+        preferredLanguage: voiceLanguage,
+        preferredVoiceGender: voiceGender,
+      },
     };
 
     onUpdateProfile(updatedProfile);
@@ -231,6 +278,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   // Check if form has unsaved edits
+  const currentVSettings = user.voiceSettings || DEFAULT_VOICE_SETTINGS;
   const hasUnsavedChanges =
     name !== (user.name || '') ||
     email !== (user.email || '') ||
@@ -238,7 +286,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     avatarUrl !== (user.avatarUrl || '') ||
     theme !== (user.theme || 'light') ||
     language !== (user.language || 'english') ||
-    notificationsEnabled !== (user.notificationsEnabled ?? true);
+    notificationsEnabled !== (user.notificationsEnabled ?? true) ||
+    voiceEnabled !== currentVSettings.enabled ||
+    autoSpeak !== currentVSettings.autoSpeak ||
+    voiceSpeed !== currentVSettings.speed ||
+    voiceVolume !== currentVSettings.volume ||
+    voicePitch !== (currentVSettings.pitch ?? 1.0) ||
+    continuousMode !== (currentVSettings.continuousMode ?? false) ||
+    voiceLanguage !== currentVSettings.preferredLanguage ||
+    voiceGender !== (currentVSettings.preferredVoiceGender || 'default');
 
   // Generate context for Gemini AI
   const getUserContext = () => {
@@ -733,6 +789,239 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               }`}
             />
           </button>
+        </div>
+      </div>
+
+      {/* SECTION 2.5: VOICE ASSISTANT SETTINGS (Sprint 7.1) */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-blue-100/80 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+              <Mic className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                <span>Voice Assistant Settings</span>
+                <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-200 uppercase">
+                  Sprint 7.1
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-500">Configure recognition, synthesis speed, volume, and language</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 1. Enable Voice Assistant */}
+        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+            <div className={`p-2 rounded-xl ${voiceEnabled ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-500'}`}>
+              <Mic className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-800 block">Enable Voice Assistant</span>
+              <span className="text-[10px] text-slate-500 font-medium">Activate microphone button and voice features</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setVoiceEnabled(!voiceEnabled);
+              showToast(`Voice Assistant ${!voiceEnabled ? 'Enabled' : 'Disabled'}`);
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer shrink-0 ${
+              voiceEnabled ? 'bg-amber-500' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                voiceEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* 2. Auto Speak Responses */}
+        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+            <div className={`p-2 rounded-xl ${autoSpeak ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
+              {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-800 block">Auto Speak Responses</span>
+              <span className="text-[10px] text-slate-500 font-medium">Read AI Coach answers aloud automatically</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setAutoSpeak(!autoSpeak);
+              showToast(`Auto Speak ${!autoSpeak ? 'ON' : 'OFF'}`);
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer shrink-0 ${
+              autoSpeak ? 'bg-blue-600' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                autoSpeak ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* 3. Voice Speed */}
+        <div className="space-y-1.5 pt-1">
+          <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <Gauge className="w-3.5 h-3.5 text-blue-600" />
+            <span>Voice Speed</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-2xl">
+            {(['slow', 'normal', 'fast'] as VoiceSpeed[]).map((spd) => (
+              <button
+                key={spd}
+                type="button"
+                onClick={() => setVoiceSpeed(spd)}
+                className={`py-2 px-2 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${
+                  voiceSpeed === spd
+                    ? 'bg-white text-blue-800 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {spd}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 4. Voice Volume */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-blue-600" />
+              <span>Voice Volume</span>
+            </label>
+            <span className="text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
+              {voiceVolume}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={voiceVolume}
+            onChange={(e) => setVoiceVolume(Number(e.target.value))}
+            className="w-full accent-blue-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
+          />
+        </div>
+
+        {/* 5. Voice Pitch */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-amber-600" />
+              <span>Voice Pitch</span>
+            </label>
+            <span className="text-xs font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+              {voicePitch.toFixed(2)}x
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0.8"
+            max="1.2"
+            step="0.05"
+            value={voicePitch}
+            onChange={(e) => setVoicePitch(Number(e.target.value))}
+            className="w-full accent-amber-500 cursor-pointer h-2 bg-slate-200 rounded-lg"
+          />
+        </div>
+
+        {/* 6. Continuous Conversation Mode */}
+        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+            <div className={`p-2 rounded-xl ${continuousMode ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-500'}`}>
+              <Mic className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-800 block">Continuous Conversation Mode</span>
+              <span className="text-[10px] text-slate-500 font-medium">Automatically resume listening after AI speech answer finishes</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setContinuousMode(!continuousMode);
+              showToast(`Continuous Mode ${!continuousMode ? 'ON' : 'OFF'}`);
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer shrink-0 ${
+              continuousMode ? 'bg-purple-600' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                continuousMode ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* 7. Preferred Voice Selection */}
+        <div className="space-y-1.5 pt-1">
+          <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <Volume2 className="w-3.5 h-3.5 text-purple-600" />
+            <span>Preferred Voice</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'default', label: 'System Default' },
+              { id: 'female', label: 'Female Voice' },
+              { id: 'male', label: 'Male Voice' },
+            ].map((voiceObj) => (
+              <button
+                key={voiceObj.id}
+                type="button"
+                onClick={() => setVoiceGender(voiceObj.id as 'default' | 'male' | 'female')}
+                className={`flex items-center justify-center py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  voiceGender === voiceObj.id
+                    ? 'bg-purple-50 border-purple-300 text-purple-900 shadow-2xs font-extrabold'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span>{voiceObj.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 8. Preferred Voice Language */}
+        <div className="space-y-1.5 pt-1">
+          <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <Globe className="w-3.5 h-3.5 text-blue-600" />
+            <span>Preferred Voice Language</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'english', label: 'English' },
+              { id: 'hindi', label: 'Hindi (हिंदी)' },
+              { id: 'gujarati', label: 'Gujarati (ગુજરાતી)' },
+            ].map((langObj) => (
+              <button
+                key={langObj.id}
+                type="button"
+                onClick={() => setVoiceLanguage(langObj.id as VoiceLanguage)}
+                className={`flex items-center justify-center py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  voiceLanguage === langObj.id
+                    ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-2xs font-extrabold'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span>{langObj.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

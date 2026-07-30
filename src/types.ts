@@ -113,6 +113,21 @@ export interface UserProfile {
   profileType?: string;
   profileTypes?: string[];
   needsOnboarding?: boolean;
+  voiceSettings?: VoiceSettings;
+}
+
+export type VoiceSpeed = 'slow' | 'normal' | 'fast';
+export type VoiceLanguage = 'english' | 'hindi' | 'gujarati';
+
+export interface VoiceSettings {
+  enabled: boolean;
+  autoSpeak: boolean;
+  speed: VoiceSpeed;
+  volume: number; // 0 to 100
+  pitch?: number; // 0.8 to 1.2 (default 1.0)
+  continuousMode?: boolean; // Auto resume listening after AI speech response finishes
+  preferredLanguage: VoiceLanguage;
+  preferredVoiceGender?: 'default' | 'male' | 'female';
 }
 
 // --- SMART NOTIFICATION & REMINDER ENGINE TYPES ---

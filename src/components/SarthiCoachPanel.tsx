@@ -27,12 +27,25 @@ import {
   ChevronRight,
   Activity,
   Layers,
-  Award
+  Award,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Globe,
+  Radio
 } from 'lucide-react';
 import { Task, Meeting, Habit, UserProfile, AICoachMessage, NavTab } from '../types';
 import { getTodayDateString } from '../data/initialData';
 import { useUser } from '../context/UserContext';
 import { aiActionService } from '../services/ai/aiActionService';
+import { voiceController, VoiceState } from '../services/voice/voiceController';
+import { SupportedVoiceLanguage } from '../services/voice/speechRecognitionService';
+import { VoiceButton } from './voice/VoiceButton';
+import { VoiceStatus } from './voice/VoiceStatus';
+import { VoiceInputController } from './voice/VoiceInputController';
+import { VoicePlayer } from './voice/VoicePlayer';
+import { SpeakingIndicator } from './voice/SpeakingIndicator';
 
 interface SarthiCoachPanelProps {
   isOpen: boolean;
@@ -183,6 +196,19 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
   });
 
   const [messages, setMessages] = useState<AICoachMessage[]>([generateInitialMessage()]);
+  const [voiceState, setVoiceState] = useState<VoiceState>(voiceController.getState());
+  const [autoReadAloud, setAutoReadAloud] = useState<boolean>(true);
+
+  // Subscribe to Voice Controller state updates
+  useEffect(() => {
+    const unsubscribe = voiceController.subscribe((vState) => {
+      setVoiceState(vState);
+      if (vState.interimTranscript) {
+        setInputQuery(vState.interimTranscript);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (isOpen && activeWorkspaceTab === 'chat') {
@@ -191,6 +217,28 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
   }, [messages, isOpen, activeWorkspaceTab]);
 
   if (!isOpen) return null;
+
+  // Voice Assistant Toggle Handler
+  const handleToggleListening = () => {
+    if (voiceState.isListening) {
+      voiceController.stopListening();
+    } else {
+      voiceController.startListening((transcript, detectedLang) => {
+        setInputQuery(transcript);
+        handleSendMessage(transcript, { isVoice: true, spokenLang: detectedLang });
+      });
+    }
+  };
+
+  const handleToggleSpeaking = () => {
+    if (voiceState.isSpeaking) {
+      voiceController.stopSpeaking();
+    }
+  };
+
+  const handleSelectLanguage = (lang: SupportedVoiceLanguage) => {
+    voiceController.setLanguage(lang);
+  };
 
   // Local AI Response Generator
   const generateLocalResponse = (promptText: string): string => {
@@ -283,7 +331,10 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
       `Click any suggested prompt below or ask a question to optimize your workflow!`;
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = (
+    textToSend?: string,
+    options?: { isVoice?: boolean; spokenLang?: SupportedVoiceLanguage }
+  ) => {
     const text = (textToSend || inputQuery).trim();
     if (!text) return;
 
@@ -333,6 +384,29 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
+
+      // Read response aloud automatically if voice input was used or autoReadAloud is enabled!
+      if ((options?.isVoice || autoReadAloud) && user.voiceSettings?.enabled !== false) {
+        const vSettings = user.voiceSettings;
+        voiceController.speakResponse(
+          responseText,
+          options?.spokenLang || voiceState.detectedLanguage || vSettings?.preferredLanguage,
+          {
+            speed: vSettings?.speed,
+            volume: vSettings?.volume,
+            pitch: vSettings?.pitch,
+            gender: vSettings?.preferredVoiceGender,
+            continuousMode: vSettings?.continuousMode,
+            enabled: vSettings?.enabled,
+          },
+          () => {
+            // Task 7: Automatically resume listening if Continuous Conversation Mode is enabled
+            if (vSettings?.continuousMode) {
+              handleToggleListening();
+            }
+          }
+        );
+      }
     }, 200);
   };
 
@@ -858,24 +932,73 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
           /* 9. AI CONVERSATION AREA & 10. SUGGESTED PROMPTS */
           <div className="max-w-4xl mx-auto h-full flex flex-col space-y-4">
             {/* Conversation Header */}
-            <div className="bg-slate-900/90 border border-blue-800/60 rounded-2xl p-4 shadow-md flex items-center justify-between">
+            <div className="bg-slate-900/90 border border-blue-800/60 rounded-2xl p-4 shadow-md flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center">
                   <Bot className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white">SARTHI AI Executive Assistant</h3>
-                  <p className="text-[10px] text-slate-400">Powered by Local DataService • Instant Responses</p>
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    <span>SARTHI AI Executive Assistant</span>
+                    <span className="bg-amber-400/20 text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-400/30 uppercase">
+                      Voice Enabled
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Multilingual Assistant • English, Hindi, Gujarati</p>
                 </div>
               </div>
 
-              <button
-                onClick={handleResetChat}
-                className="text-xs font-bold text-slate-400 hover:text-white bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Clear Chat</span>
-              </button>
+              {/* Header Right Voice & Language Controls */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Language Selector Pills */}
+                <div className="bg-slate-950 p-1 rounded-xl border border-blue-900/80 flex items-center gap-0.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 px-1.5 flex items-center gap-1">
+                    <Globe className="w-3 h-3 text-amber-300" />
+                    <span className="hidden sm:inline">Lang:</span>
+                  </span>
+                  {[
+                    { code: 'auto', label: 'AUTO' },
+                    { code: 'en-US', label: 'EN' },
+                    { code: 'hi-IN', label: 'HI (हिंदी)' },
+                    { code: 'gu-IN', label: 'GU (ગુજરાતી)' },
+                  ].map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => handleSelectLanguage(lang.code as SupportedVoiceLanguage)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                        voiceState.selectedLanguage === lang.code
+                          ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title={`Voice Language: ${lang.label}`}
+                    >
+                      {lang.label.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Auto Read Aloud Toggle */}
+                <button
+                  onClick={() => setAutoReadAloud(!autoReadAloud)}
+                  className={`p-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 cursor-pointer ${
+                    autoReadAloud
+                      ? 'bg-blue-600/30 border-blue-500/50 text-blue-200 hover:bg-blue-600/40'
+                      : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={autoReadAloud ? 'Auto Voice Reply: ON' : 'Auto Voice Reply: OFF'}
+                >
+                  {autoReadAloud ? <Volume2 className="w-4 h-4 text-amber-300" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+                </button>
+
+                <button
+                  onClick={handleResetChat}
+                  className="text-xs font-bold text-slate-400 hover:text-white bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1 cursor-pointer"
+                  title="Clear Chat History"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Clear</span>
+                </button>
+              </div>
             </div>
 
             {/* Chat Messages Log */}
@@ -912,11 +1035,114 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
                     <div className="whitespace-pre-line font-medium leading-relaxed">
                       {msg.text}
                     </div>
+
+                    {/* AI Voice Reply Controls (Sprint 7.3) */}
+                    {msg.sender === 'sarthi' && (
+                      <div className="pt-2 border-t border-blue-900/60 mt-2">
+                        <VoicePlayer
+                          text={msg.text}
+                          language={user.voiceSettings?.preferredLanguage || 'english'}
+                          speed={user.voiceSettings?.speed}
+                          volume={user.voiceSettings?.volume}
+                          pitch={user.voiceSettings?.pitch}
+                          autoSpeak={autoReadAloud}
+                          onAutoSpeakToggle={(enabled) => setAutoReadAloud(enabled)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
               <div ref={chatEndRef} />
             </div>
+
+            {/* ERROR ALERT BANNER */}
+            {voiceState.errorMessage && (
+              <div className="bg-rose-950/80 border border-rose-800/80 rounded-xl p-3 text-xs text-rose-200 flex items-center justify-between gap-2 animate-fadeIn">
+                <div className="flex items-center gap-2 font-bold">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{voiceState.errorMessage}</span>
+                </div>
+                <button
+                  onClick={() => voiceController.clearError()}
+                  className="text-rose-300 hover:text-white p-1 cursor-pointer font-bold"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* ANIMATED LISTENING UI & WAVEFORM */}
+            {voiceState.isListening && (
+              <div className="bg-slate-950/95 border border-rose-500/80 rounded-2xl p-4 space-y-2 shadow-2xl animate-fadeIn relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-rose-600/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute inset-0 bg-rose-500 rounded-full animate-ping opacity-50" />
+                      <div className="w-10 h-10 rounded-full bg-rose-600 text-white flex items-center justify-center relative z-10 shadow-lg shadow-rose-600/50">
+                        <Mic className="w-5 h-5 animate-pulse" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                          <Radio className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                          <span>Listening... Speak Now</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30 uppercase">
+                          {voiceState.detectedLanguage === 'hi-IN' ? 'Hindi (हिंदी)' : voiceState.detectedLanguage === 'gu-IN' ? 'Gujarati (ગુજરાતી)' : 'English'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 font-medium">
+                        {voiceState.interimTranscript || 'Say "Plan my day", "Create task", or ask any prompt...'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Waveform Visualizer Animation */}
+                  <div className="flex items-center gap-1 shrink-0 px-2">
+                    <div className="w-1.5 bg-rose-400 rounded-full h-3 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 bg-rose-400 rounded-full h-6 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1.5 bg-rose-400 rounded-full h-4 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className="w-1.5 bg-rose-400 rounded-full h-7 animate-bounce" style={{ animationDelay: '450ms' }} />
+                    <div className="w-1.5 bg-rose-400 rounded-full h-3 animate-bounce" style={{ animationDelay: '600ms' }} />
+                  </div>
+
+                  <button
+                    onClick={handleToggleListening}
+                    className="bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-200 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                  >
+                    <MicOff className="w-4 h-4" />
+                    <span>Stop</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SPEAKING ALOUD ACTIVE BAR */}
+            {voiceState.isSpeaking && (
+              <div className="bg-gradient-to-r from-blue-950/90 via-indigo-950/90 to-slate-950 border border-blue-500/80 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xl animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
+                    <Volume2 className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-blue-300">SARTHI AI Assistant is Speaking Aloud...</p>
+                    <p className="text-[10px] text-slate-400">Multilingual Voice Output Active</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleToggleSpeaking}
+                  className="bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs px-3 py-2 rounded-xl border border-amber-400/40 flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <VolumeX className="w-4 h-4" />
+                  <span>Stop Speaking</span>
+                </button>
+              </div>
+            )}
 
             {/* 10. SUGGESTED PROMPTS & INPUT BOX */}
             <div className="bg-slate-900/90 border border-blue-800/60 rounded-2xl p-4 space-y-3 shadow-lg">
@@ -924,7 +1150,7 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
               <div className="space-y-1.5">
                 <p className="text-[10px] font-black uppercase text-amber-300 tracking-wider flex items-center gap-1">
                   <Zap className="w-3 h-3 text-amber-400" />
-                  <span>10. Suggested Prompts</span>
+                  <span>10. Suggested Voice Prompts</span>
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {[
@@ -947,30 +1173,44 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
                 </div>
               </div>
 
-              {/* Chat Input */}
+              {/* Chat Input Form with Microphone Button & Voice Engine (Sprint 7.2) */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSendMessage();
                 }}
-                className="flex gap-2"
+                className="flex gap-2 items-center"
               >
+                <VoiceInputController
+                  onTranscriptChange={(recognizedText) => setInputQuery(recognizedText)}
+                  onAutoSubmit={(textToSubmit) => handleSendMessage(textToSubmit)}
+                  preferredLanguage={user.voiceSettings?.preferredLanguage || 'english'}
+                  showTranscriptCard={true}
+                />
+
                 <input
                   type="text"
                   value={inputQuery}
                   onChange={(e) => setInputQuery(e.target.value)}
-                  placeholder="Ask SARTHI Coach about your tasks, schedule, risks, or performance..."
+                  placeholder="Ask SARTHI Coach or tap mic to speak (EN / HI / GU)..."
                   className="flex-1 bg-slate-950 border border-blue-800/80 focus:border-amber-400 text-xs sm:text-sm text-white px-4 py-3 rounded-xl outline-none placeholder:text-slate-500 font-medium"
                 />
+
                 <button
                   type="submit"
                   disabled={!inputQuery.trim()}
-                  className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-50 text-slate-950 font-black text-xs sm:text-sm px-5 py-3 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md shrink-0"
+                  className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-50 text-slate-950 font-black text-xs sm:text-sm px-5 py-3 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md shrink-0 h-11"
                 >
                   <span>Send</span>
                   <Send className="w-4 h-4" />
                 </button>
               </form>
+
+              {!voiceState.isSupported && (
+                <p className="text-[10px] text-amber-400/80 font-semibold text-center">
+                  ℹ️ Voice Assistant recognition is disabled or unsupported in this browser mode. Standard text chat remains active.
+                </p>
+              )}
             </div>
           </div>
         )}

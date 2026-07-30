@@ -1,4 +1,15 @@
-import { Habit, Task, Meeting, Note, JournalEntry, Quote, UserProfile, Goal } from '../types';
+import { Habit, Task, Meeting, Note, JournalEntry, Quote, UserProfile, Goal, VoiceSettings } from '../types';
+
+export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
+  enabled: true,
+  autoSpeak: true,
+  speed: 'normal',
+  volume: 80,
+  pitch: 1.0,
+  continuousMode: false,
+  preferredLanguage: 'english',
+  preferredVoiceGender: 'default',
+};
 
 export const INITIAL_USER_PROFILES: Record<string, UserProfile> = {
   mihir: {
@@ -18,6 +29,7 @@ export const INITIAL_USER_PROFILES: Record<string, UserProfile> = {
     theme: 'light',
     language: 'english',
     notificationsEnabled: true,
+    voiceSettings: DEFAULT_VOICE_SETTINGS,
   },
   mansi: {
     uid: 'mansi',
