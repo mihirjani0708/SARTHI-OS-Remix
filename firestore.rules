@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User-isolated collections: users can only read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /profiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /habits/{habitId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /planner/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /tasks/{taskId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /goals/{goalId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /journal/{entryId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /analytics/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /feedback/{feedbackId} {
+      allow create: if request.auth != null;
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    match /sessions/{sessionId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if true;
+    }
+    match /analytics_events/{eventId} {
+      allow read, write: if true;
+    }
+    match /analytics_summary/{summaryId} {
+      allow read, write: if true;
+    }
+    match /system_test/{testId} {
+      allow read, write: if true;
+    }
+    match /migration_logs/{logId} {
+      allow read, write: if true;
+    }
+  }
+}

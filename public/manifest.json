@@ -1,0 +1,18 @@
+{
+  "short_name": "SARTHI",
+  "name": "SARTHI — Your Personal Life & Business Operating System",
+  "description": "Your Personal Life & Business Operating System with habit tracking, daily planning, and AI coaching.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512 192x192 144x144",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1E3A8A",
+  "display": "standalone",
+  "orientation": "portrait"
+}

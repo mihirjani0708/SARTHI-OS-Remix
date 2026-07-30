@@ -1,0 +1,168 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "User registration and account details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "profiles": {
+      "title": "Profile",
+      "description": "Executive profile information",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "executiveTitle": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "required": ["userId"]
+    },
+    "habits": {
+      "title": "Habit",
+      "description": "User daily habits",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "userId"]
+    },
+    "planner": {
+      "title": "Planner",
+      "description": "User planner container",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" }
+      },
+      "required": ["userId"]
+    },
+    "tasks": {
+      "title": "Task",
+      "description": "User tasks and to-dos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" }
+      },
+      "required": ["id", "userId"]
+    },
+    "goals": {
+      "title": "Goal",
+      "description": "Long term objectives",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" }
+      },
+      "required": ["id", "userId"]
+    },
+    "journal": {
+      "title": "Journal",
+      "description": "Daily journal entries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "required": ["id", "userId"]
+    },
+    "analytics": {
+      "title": "Analytics",
+      "description": "User productivity metrics",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "osScore": { "type": "number" }
+      },
+      "required": ["userId"]
+    },
+    "feedback": {
+      "title": "Feedback",
+      "description": "User feedback logs",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["userId"]
+    },
+    "sessions": {
+      "title": "Session",
+      "description": "User login sessions",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "loginTime": { "type": "string" },
+        "logoutTime": { "type": "string" },
+        "sessionDuration": { "type": "number" },
+        "platform": { "type": "string" },
+        "browser": { "type": "string" },
+        "operatingSystem": { "type": "string" },
+        "deviceType": { "type": "string" },
+        "appVersion": { "type": "string" }
+      },
+      "required": ["sessionId", "userId", "loginTime"]
+    },
+    "analytics_events": {
+      "title": "Analytics Event",
+      "description": "Real user event metadata tracking",
+      "type": "object",
+      "properties": {
+        "eventId": { "type": "string" },
+        "userId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "eventType": { "type": "string" },
+        "module": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "platform": { "type": "string" },
+        "browser": { "type": "string" },
+        "device": { "type": "string" },
+        "appVersion": { "type": "string" }
+      },
+      "required": ["eventId", "userId", "eventType", "timestamp"]
+    },
+    "analytics_summary": {
+      "title": "Analytics Summary",
+      "description": "Aggregated user analytics telemetry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "lastUpdated": { "type": "string" },
+        "totalSessions": { "type": "number" },
+        "totalEvents": { "type": "number" },
+        "mostUsedModule": { "type": "string" }
+      },
+      "required": ["userId"]
+    },
+    "migration_logs": {
+      "title": "Migration Log",
+      "description": "User cloud migration execution logs",
+      "type": "object",
+      "properties": {
+        "migrationId": { "type": "string" },
+        "userId": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "durationMs": { "type": "number" },
+        "status": { "type": "string" },
+        "error": { "type": "string" }
+      },
+      "required": ["migrationId", "userId", "status"]
+    }
+  }
+}
