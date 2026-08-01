@@ -1,0 +1,11 @@
+{
+  "appName": "SARTHI",
+  "packageId": "com.sarthi.app",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "buildTimestamp": "2026-08-01T00:00:00Z",
+  "releaseChannel": "production-rc1",
+  "minSdkVersion": 24,
+  "targetSdkVersion": 34,
+  "pwaStandard": "WebAPK / TWA 2.0"
+}

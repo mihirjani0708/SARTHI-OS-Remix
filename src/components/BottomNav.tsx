@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, CheckSquare, Calendar, Target, BookOpen, User } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, ListTodo, CalendarDays, Target, BookOpen, User } from 'lucide-react';
 import { NavTab } from '../types';
 
 interface BottomNavProps {
@@ -28,7 +28,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'planner' as NavTab,
       label: 'Planner',
-      icon: Calendar,
+      icon: ListTodo,
       badge: pendingTaskCount > 0 ? pendingTaskCount : undefined,
     },
     {
@@ -39,6 +39,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     },
     { id: 'journal' as NavTab, label: 'Journal', icon: BookOpen },
     { id: 'profile' as NavTab, label: 'Profile', icon: User },
+    {
+      id: 'calendar' as NavTab,
+      label: 'Calendar',
+      icon: CalendarDays,
+    },
   ];
 
   return (
@@ -54,13 +59,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               onClick={() => onSelectTab(tab.id)}
               className={`relative flex flex-col items-center justify-center py-1 px-1.5 rounded-2xl min-h-[48px] transition-all duration-200 active:scale-95 cursor-pointer select-none group ${
                 isActive
-                  ? 'text-white font-bold scale-105 bg-blue-600/30 ring-1 ring-blue-500/40'
-                  : 'text-slate-400 hover:text-slate-200 font-medium'
+                  ? 'text-white font-bold scale-105 bg-blue-600/30 ring-1 ring-blue-500/50 shadow-[0_0_12px_rgba(37,99,235,0.4)]'
+                  : 'text-slate-400 hover:text-slate-200 font-medium hover:scale-102'
               }`}
             >
               {/* Active Ambient Glow Indicator */}
               {isActive && (
-                <span className="absolute -top-1 w-6 h-1 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full shadow-md shadow-blue-500/50" />
+                <span className="absolute -top-1 w-6 h-1 bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-500 rounded-full shadow-md shadow-blue-500/60" />
               )}
 
               <div className="relative">

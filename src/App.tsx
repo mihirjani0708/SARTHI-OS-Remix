@@ -7,6 +7,7 @@ import { BottomNav } from './components/BottomNav';
 import { DashboardView } from './components/DashboardView';
 import { HabitsView } from './components/HabitsView';
 import { PlannerView } from './components/PlannerView';
+import { SmartCalendar } from './components/SmartCalendar';
 import { GoalsView } from './components/GoalsView';
 import { JournalView } from './components/JournalView';
 import { ProfileView } from './components/ProfileView';
@@ -16,6 +17,8 @@ import { SarthiCoachPanel } from './components/SarthiCoachPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { SplashScreen } from './components/SplashScreen';
 import { OnboardingView } from './components/OnboardingView';
+import { AlertCenterModal } from './components/AlertCenterModal';
+import { notificationService } from './services/notifications/notificationService';
 import { Smartphone, Monitor } from 'lucide-react';
 
 function AppContent() {
@@ -23,6 +26,7 @@ function AppContent() {
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(false);
   const [isCoachOpen, setIsCoachOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [isAlertCenterOpen, setIsAlertCenterOpen] = useState<boolean>(false);
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
   // Global Ctrl+K / Cmd+K listener for Command Palette Spotlight
@@ -35,6 +39,12 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  // Notification Engine initialization & periodic sync
+  useEffect(() => {
+    notificationService.startEngine(15000); // Check every 15s
+    return () => notificationService.stopEngine();
   }, []);
 
   // App Data & Central User from UserContext
@@ -128,7 +138,26 @@ function AppContent() {
     setHabits((prev) => [newHabit, ...prev]);
   };
 
-  // Delete custom habit
+  // Update habit
+  const handleUpdateHabit = (updatedHabit: Habit) => {
+    setHabits((prev) => prev.map((h) => (h.id === updatedHabit.id ? updatedHabit : h)));
+  };
+
+  // Duplicate habit
+  const handleDuplicateHabit = (habit: Habit) => {
+    const copy: Habit = {
+      ...habit,
+      id: `habit-${Date.now()}`,
+      name: `${habit.name} (Copy)`,
+      streak: 0,
+      bestStreak: habit.streak || 0,
+      completedDates: {},
+      isCustom: true,
+    };
+    setHabits((prev) => [copy, ...prev]);
+  };
+
+  // Delete habit (default or custom)
   const handleDeleteHabit = (habitId: string) => {
     setHabits((prev) => prev.filter((h) => h.id !== habitId));
   };
@@ -156,6 +185,16 @@ function AppContent() {
     );
   };
 
+  const handleDuplicateTask = (task: Task) => {
+    const copy: Task = {
+      ...task,
+      id: `task-${Date.now()}`,
+      title: `${task.title} (Copy)`,
+      status: 'todo',
+    };
+    setTasks((prev) => [copy, ...prev]);
+  };
+
   const handleDeleteTask = (taskId: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
@@ -163,6 +202,25 @@ function AppContent() {
   // Meetings handlers
   const handleAddMeeting = (newMeeting: Meeting) => {
     setMeetings((prev) => [newMeeting, ...prev]);
+  };
+
+  const handleUpdateMeeting = (updatedMeeting: Meeting) => {
+    setMeetings((prev) =>
+      prev.map((m) => (m.id === updatedMeeting.id ? updatedMeeting : m))
+    );
+  };
+
+  const handleDuplicateMeeting = (meeting: Meeting) => {
+    const copy: Meeting = {
+      ...meeting,
+      id: `meeting-${Date.now()}`,
+      title: `${meeting.title} (Copy)`,
+    };
+    setMeetings((prev) => [copy, ...prev]);
+  };
+
+  const handleDeleteMeeting = (meetingId: string) => {
+    setMeetings((prev) => prev.filter((m) => m.id !== meetingId));
   };
 
   const handleToggleMeeting = (meetingId: string) => {
@@ -174,6 +232,22 @@ function AppContent() {
   // Notes handlers
   const handleAddNote = (newNote: Note) => {
     setNotes((prev) => [newNote, ...prev]);
+  };
+
+  const handleUpdateNote = (updatedNote: Note) => {
+    setNotes((prev) =>
+      prev.map((n) => (n.id === updatedNote.id ? updatedNote : n))
+    );
+  };
+
+  const handleDuplicateNote = (note: Note) => {
+    const copy: Note = {
+      ...note,
+      id: `note-${Date.now()}`,
+      title: `${note.title} (Copy)`,
+      updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setNotes((prev) => [copy, ...prev]);
   };
 
   const handleDeleteNote = (noteId: string) => {
@@ -247,6 +321,7 @@ function AppContent() {
           onSelectTab={setActiveTab}
           activeTab={activeTab}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenAlertCenter={() => setIsAlertCenterOpen(true)}
         />
 
         {/* Dynamic Main View */}
@@ -273,6 +348,8 @@ function AppContent() {
               habits={habits}
               onToggleHabit={handleToggleHabit}
               onAddHabit={handleAddHabit}
+              onUpdateHabit={handleUpdateHabit}
+              onDuplicateHabit={handleDuplicateHabit}
               onDeleteHabit={handleDeleteHabit}
             />
           )}
@@ -284,13 +361,24 @@ function AppContent() {
               notes={notes}
               onAddTask={handleAddTask}
               onUpdateTask={handleUpdateTask}
+              onDuplicateTask={handleDuplicateTask}
               onToggleTask={handleToggleTask}
               onDeleteTask={handleDeleteTask}
               onAddMeeting={handleAddMeeting}
+              onUpdateMeeting={handleUpdateMeeting}
+              onDuplicateMeeting={handleDuplicateMeeting}
+              onDeleteMeeting={handleDeleteMeeting}
               onToggleMeeting={handleToggleMeeting}
               onAddNote={handleAddNote}
+              onUpdateNote={handleUpdateNote}
+              onDuplicateNote={handleDuplicateNote}
               onDeleteNote={handleDeleteNote}
+              onNavigateTab={setActiveTab}
             />
+          )}
+
+          {activeTab === 'calendar' && (
+            <SmartCalendar />
           )}
 
           {activeTab === 'goals' && <GoalsView />}
@@ -346,6 +434,14 @@ function AppContent() {
         onSelectTab={setActiveTab}
         onOpenCoach={() => setIsCoachOpen(true)}
         onToggleFrame={() => setIsMobileFrame((prev) => !prev)}
+      />
+
+      {/* Alert Center & Notification Engine Modal */}
+      <AlertCenterModal
+        isOpen={isAlertCenterOpen}
+        onClose={() => setIsAlertCenterOpen(false)}
+        userId={(currentUser as any).id || currentUser.uid || 'mansi'}
+        onNavigateTab={setActiveTab}
       />
     </div>
   );

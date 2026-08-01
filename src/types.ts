@@ -1,4 +1,4 @@
-export type NavTab = 'home' | 'habits' | 'planner' | 'goals' | 'journal' | 'profile' | 'admin';
+export type NavTab = 'home' | 'habits' | 'planner' | 'calendar' | 'goals' | 'journal' | 'profile' | 'admin';
 
 export type GoalCategory = 'Business' | 'Health' | 'Finance' | 'Personal' | 'Mindset';
 export type GoalTimeframe = 'Q3 2026' | 'Yearly' | 'Monthly' | 'Long-term';
@@ -65,6 +65,7 @@ export interface Meeting {
   attendees?: string[];
   notes?: string;
   completed?: boolean;
+  date?: string; // YYYY-MM-DD
 }
 
 export interface Note {
@@ -114,6 +115,15 @@ export interface UserProfile {
   profileTypes?: string[];
   needsOnboarding?: boolean;
   voiceSettings?: VoiceSettings;
+  timezone?: string;
+  dateFormat?: 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
+  timeFormat?: '12h' | '24h';
+  fontSize?: 'small' | 'medium' | 'large';
+  animationsEnabled?: boolean;
+  calendarDefaultView?: 'month' | 'week' | 'day' | 'agenda';
+  calendarStartOfWeek?: 'monday' | 'sunday';
+  workingHoursStart?: string;
+  workingHoursEnd?: string;
 }
 
 export type VoiceSpeed = 'slow' | 'normal' | 'fast';

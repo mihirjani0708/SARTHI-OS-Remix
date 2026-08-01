@@ -1,0 +1,40 @@
+{
+  "packageId": "com.sarthi.app",
+  "host": "sarthi.app",
+  "name": "SARTHI",
+  "launcherName": "SARTHI",
+  "display": "standalone",
+  "themeColor": "#1E3A8A",
+  "themeColorDark": "#0F172A",
+  "navigationColor": "#0F172A",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#1E293B",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://sarthi.app/icon-512.png",
+  "maskableIconUrl": "https://sarthi.app/icon.svg",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "sarthi-key"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://sarthi.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  }
+}

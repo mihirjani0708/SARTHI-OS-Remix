@@ -8,6 +8,7 @@ import {
   Clock,
   Trash2,
   Edit2,
+  Copy,
   ChevronRight,
   Filter,
   Sparkles,
@@ -23,6 +24,20 @@ import { Goal, GoalCategory, GoalTimeframe, Milestone } from '../types';
 import { useUser } from '../context/UserContext';
 import { getTodayDateString } from '../data/initialData';
 import { EmptyState } from './EmptyState';
+import { SmartSuggestionInput } from './SmartSuggestionInput';
+
+// Helper for user-friendly date formatting: "📅 Due: 30 Sep 2026"
+const formatDueDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parts[0];
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthStr = monthNames[monthIdx] || parts[1];
+  return `${day} ${monthStr} ${year}`;
+};
 
 export const GoalsView: React.FC = () => {
   const { goals, setGoals } = useUser();
@@ -128,9 +143,17 @@ export const GoalsView: React.FC = () => {
   };
 
   const handleDeleteGoal = (goalId: string) => {
-    if (confirm('Are you sure you want to delete this goal?')) {
-      setGoals(goals.filter((g) => g.id !== goalId));
-    }
+    setGoals(goals.filter((g) => g.id !== goalId));
+  };
+
+  const handleDuplicateGoal = (goal: Goal) => {
+    const duplicated: Goal = {
+      ...goal,
+      id: `goal-${Date.now()}`,
+      title: `${goal.title} (Copy)`,
+      milestones: goal.milestones ? goal.milestones.map((m, idx) => ({ ...m, id: `m-${Date.now()}-${idx}` })) : [],
+    };
+    setGoals([duplicated, ...goals]);
   };
 
   const handleQuickUpdateProgress = (goalId: string, increment: number) => {
@@ -252,8 +275,8 @@ export const GoalsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter and Category Navigation */}
-      <div className="bg-white rounded-2xl p-3 shadow-xs border border-blue-100 space-y-2.5">
+      {/* Filter Chips Bar */}
+      <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-xs border border-slate-200/80 space-y-2.5">
         <div className="flex items-center justify-between gap-1 overflow-x-auto pb-1 custom-scrollbar">
           {(['all', 'active', 'completed', 'on_hold'] as const).map((filter) => (
             <button
@@ -262,7 +285,7 @@ export const GoalsView: React.FC = () => {
               className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer whitespace-nowrap ${
                 activeFilter === filter
                   ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               {filter === 'on_hold' ? 'On Hold' : filter} ({goals.filter((g) => filter === 'all' || g.status === filter).length})
@@ -270,16 +293,16 @@ export const GoalsView: React.FC = () => {
           ))}
         </div>
 
-        {/* Category Chips */}
+        {/* Category Filter Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
-          {['All', 'Business', 'Health', 'Finance', 'Personal', 'Mindset'].map((cat) => (
+          {['All', 'Business', 'Personal', 'Health', 'Finance', 'Career', 'Learning', 'Travel', 'Mindset'].map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap ${
                 selectedCategory === cat
-                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               {cat}
@@ -289,7 +312,7 @@ export const GoalsView: React.FC = () => {
       </div>
 
       {/* Goals Card List */}
-      <div className="space-y-3.5">
+      <div className="space-y-4">
         {filteredGoals.length === 0 ? (
           <EmptyState
             title="No goals found for this filter"
@@ -312,57 +335,72 @@ export const GoalsView: React.FC = () => {
             return (
               <div
                 key={goal.id}
-                className={`bg-white rounded-2xl p-4 shadow-sm border transition-all space-y-3 ${
+                className={`bg-white rounded-3xl p-5 shadow-xs border transition-all space-y-4 ${
                   isCompleted
-                    ? 'border-emerald-200 bg-emerald-50/20'
-                    : 'border-blue-100 hover:border-blue-300'
+                    ? 'border-emerald-200/90 bg-emerald-50/15'
+                    : 'border-slate-200/80 hover:border-blue-300'
                 }`}
               >
-                {/* Card Header */}
+                {/* Card Header & Action Buttons */}
                 <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md border border-blue-200/60">
-                        {goal.category}
-                      </span>
-                      <span className="bg-amber-50 text-amber-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md border border-amber-200/60">
-                        {goal.timeframe}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isCompleted
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : goal.status === 'on_hold'
-                            ? 'bg-gray-100 text-gray-600'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {isCompleted ? 'Completed' : goal.status === 'on_hold' ? 'On Hold' : 'Active'}
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-blue-900 bg-blue-50/90 px-2.5 py-0.5 rounded-lg border border-blue-200/60">
+                        {goal.category} Goal
                       </span>
                     </div>
 
-                    <h3 className="font-extrabold text-gray-900 text-sm sm:text-base leading-snug">
+                    <div className="flex items-center gap-3 text-slate-600 text-xs font-semibold">
+                      <span>
+                        Status:{' '}
+                        <strong
+                          className={
+                            isCompleted
+                              ? 'text-emerald-600 font-extrabold'
+                              : goal.status === 'on_hold'
+                              ? 'text-slate-500 font-bold'
+                              : 'text-blue-600 font-extrabold'
+                          }
+                        >
+                          {isCompleted ? 'Active' : goal.status === 'on_hold' ? 'On Hold' : 'Active'}
+                        </strong>
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span>
+                        Quarter: <strong className="text-slate-800 font-extrabold">{goal.timeframe}</strong>
+                      </span>
+                    </div>
+
+                    <h3 className="font-extrabold text-slate-900 text-base sm:text-lg leading-snug pt-0.5">
                       {goal.title}
                     </h3>
 
                     {goal.description && (
-                      <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-normal">
                         {goal.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  {/* PART 5: ACTION BUTTONS (Edit = Blue, Duplicate = Gray, Delete = Red) */}
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => openEditModal(goal)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-all cursor-pointer"
+                      className="p-2 text-blue-600 hover:bg-blue-50 border border-blue-200/60 rounded-xl transition-all hover:scale-110 cursor-pointer shadow-2xs"
                       title="Edit Goal"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => handleDuplicateGoal(goal)}
+                      className="p-2 text-slate-500 hover:bg-slate-100 border border-slate-200/60 rounded-xl transition-all hover:scale-110 cursor-pointer shadow-2xs"
+                      title="Duplicate Goal"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleDeleteGoal(goal.id)}
-                      className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
+                      className="p-2 text-red-600 hover:bg-red-50 border border-red-200/60 rounded-xl transition-all hover:scale-110 cursor-pointer shadow-2xs"
                       title="Delete Goal"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -370,20 +408,18 @@ export const GoalsView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Progress Bar & Quick Metrics */}
+                {/* PART 3: PROGRESS BAR */}
                 <div className="space-y-1.5 pt-1">
                   <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-gray-700">
-                      Progress: {goal.unit === '$' ? `$${goal.currentProgress.toLocaleString()}` : goal.currentProgress} / {goal.unit === '$' ? `$${goal.targetProgress.toLocaleString()}` : goal.targetProgress} {goal.unit !== '$' ? goal.unit : ''}
-                    </span>
-                    <span className={isCompleted ? 'text-emerald-600 font-extrabold' : 'text-blue-600'}>
+                    <span className="text-slate-700 font-extrabold">Progress</span>
+                    <span className={isCompleted ? 'text-emerald-600 font-black' : 'text-blue-600 font-black'}>
                       {pct}%
                     </span>
                   </div>
 
-                  <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200/80">
+                  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/80">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${
                         isCompleted
                           ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
                           : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500'
@@ -395,8 +431,8 @@ export const GoalsView: React.FC = () => {
 
                 {/* Sub-Milestones Checklist */}
                 {goal.milestones && goal.milestones.length > 0 && (
-                  <div className="bg-gray-50/80 rounded-xl p-2.5 space-y-1.5 border border-gray-100">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 flex items-center justify-between">
+                  <div className="bg-slate-50/80 rounded-2xl p-3 space-y-1.5 border border-slate-100">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center justify-between">
                       <span>Sub-Milestones</span>
                       <span>
                         {goal.milestones.filter((m) => m.completed).length}/{goal.milestones.length}
@@ -407,15 +443,15 @@ export const GoalsView: React.FC = () => {
                         <div
                           key={m.id}
                           onClick={() => handleToggleMilestone(goal.id, m.id)}
-                          className={`flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer transition-all ${
-                            m.completed ? 'text-gray-400 line-through bg-gray-100/50' : 'text-gray-800 hover:bg-white'
+                          className={`flex items-center gap-2 p-1.5 rounded-xl text-xs cursor-pointer transition-all ${
+                            m.completed ? 'text-slate-400 line-through bg-slate-100/50' : 'text-slate-800 hover:bg-white'
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                            className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
                               m.completed
                                 ? 'bg-emerald-600 border-emerald-600 text-white'
-                                : 'border-gray-300 bg-white'
+                                : 'border-slate-300 bg-white'
                             }`}
                           >
                             {m.completed && <Check className="w-3 h-3" />}
@@ -427,23 +463,22 @@ export const GoalsView: React.FC = () => {
                   </div>
                 )}
 
-                {/* Footer Controls */}
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
-                  <div className="flex items-center gap-1.5 text-gray-500 text-[11px] font-medium">
-                    <Clock className="w-3.5 h-3.5 text-gray-400" />
-                    <span>Target: {goal.targetDate}</span>
+                {/* Footer Controls & PART 4: TARGET DATE */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-600 text-xs font-bold">
+                    <span>📅 Due: {formatDueDate(goal.targetDate)}</span>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleQuickUpdateProgress(goal.id, 5)}
-                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px]"
+                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-xl transition-all cursor-pointer text-xs"
                     >
                       +5%
                     </button>
                     <button
                       onClick={() => handleQuickUpdateProgress(goal.id, 10)}
-                      className="bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px]"
+                      className="bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-xl transition-all cursor-pointer text-xs"
                     >
                       +10%
                     </button>
@@ -477,17 +512,15 @@ export const GoalsView: React.FC = () => {
             </div>
 
             <form onSubmit={editingGoal ? handleUpdateGoal : handleAddGoal} className="space-y-3.5 text-xs sm:text-sm">
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">Goal Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Expand SaaS Enterprise Revenue"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-blue-500 font-medium"
-                />
-              </div>
+              <SmartSuggestionInput
+                type="goal_title"
+                label="Goal Title *"
+                value={newTitle}
+                onChange={setNewTitle}
+                placeholder="e.g. Expand SaaS Revenue, Master French..."
+                required
+                autoFocus
+              />
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>

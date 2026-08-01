@@ -10,6 +10,7 @@ interface HeaderProps {
   onSelectTab: (tab: any) => void;
   activeTab: string;
   onOpenCommandPalette?: () => void;
+  onOpenAlertCenter?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCoach,
   onSelectTab,
   onOpenCommandPalette,
+  onOpenAlertCenter,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState([
@@ -66,12 +68,21 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-blue-100/80 px-3 sm:px-4 py-2 sm:py-2.5 shadow-xs">
       <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
         {/* Brand & Logo */}
-        <div
-          onClick={() => onSelectTab('home')}
-          className="cursor-pointer group hover:opacity-90 transition-opacity"
-          title="SARTHI Home"
-        >
-          <SarthiLogo variant="header" size="md" />
+        <div className="flex items-center gap-2">
+          <div
+            onClick={() => onSelectTab('home')}
+            className="cursor-pointer group hover:opacity-90 transition-opacity"
+            title="SARTHI Home"
+          >
+            <SarthiLogo variant="header" size="md" />
+          </div>
+
+          {(user.uid === 'demo_user' || user.email === 'demo@sarthi.ai') && (
+            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-700 text-[10px] font-extrabold rounded-full">
+              <Sparkles className="w-3 h-3 text-amber-500" />
+              <span>Demo Mode</span>
+            </span>
+          )}
         </div>
 
         {/* Right Actions: Spotlight Search, Notifications, Streak, AI Coach, Avatar */}
@@ -168,6 +179,18 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     ))
                   )}
+                </div>
+
+                <div className="p-2 border-t border-slate-100 bg-slate-50 text-center">
+                  <button
+                    onClick={() => {
+                      setShowNotifications(false);
+                      if (onOpenAlertCenter) onOpenAlertCenter();
+                    }}
+                    className="text-xs font-extrabold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                  >
+                    Open Alert Center & Engine →
+                  </button>
                 </div>
               </div>
             )}

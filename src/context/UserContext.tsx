@@ -4,8 +4,9 @@ import { dataService, IDataService } from '../services/dataService';
 import { createFreshHabitCollection } from '../data/initialData';
 import { generateOnboardingData } from '../data/onboardingProfiles';
 import { analyticsService } from '../services/analytics/analyticsService';
+import { firebaseAuthService } from '../services/firebase/firebaseAuthService';
 
-// Temporary Mock User system - defaults to "mansi" (Ready for Firebase Auth replacement)
+// Default User ID
 export const MOCK_CURRENT_USER_ID = 'mansi';
 
 export interface UserAccount {
@@ -18,7 +19,7 @@ export interface UserAccount {
 }
 
 export interface UserContextType {
-  // Central User Object (Firebase Auth ready)
+  // Central User Object
   currentUser: UserProfile;
   currentUserId: string;
   updateProfile: (updatedProfile: Partial<UserProfile>) => void;
@@ -43,6 +44,9 @@ export interface UserContextType {
 
   // Authentication & Multi-user operations
   login: (emailOrPhone: string, pass: string, rememberMe?: boolean) => { success: boolean; error?: string };
+  loginWithGoogle: (googleProfile: { email: string; name?: string; uid?: string }, rememberMe?: boolean) => { success: boolean; error?: string };
+  loginWithApple: (appleProfile: { email: string; name?: string; uid?: string }, rememberMe?: boolean) => { success: boolean; error?: string };
+  loginDemoUser: () => { success: boolean };
   register: (data: { fullName: string; phone: string; email?: string; password: string }) => { success: boolean; error?: string };
   completeOnboarding: (profileIds: string | string[]) => void;
   logout: () => void;
@@ -58,30 +62,55 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 const REGISTRY_KEY = 'sarthi_user_registry_v1';
 
-function getUserRegistry(): UserAccount[] {
-  try {
-    if (!localStorage.getItem('sarthi_dev_auth_cleaned_v2')) {
-      localStorage.removeItem(REGISTRY_KEY);
-      localStorage.removeItem('sarthi_active_session');
-      localStorage.removeItem('sarthi_auth_user');
-      sessionStorage.removeItem('sarthi_auth_user');
-      sessionStorage.removeItem('sarthi_active_session');
-      localStorage.setItem('sarthi_dev_auth_cleaned_v2', 'true');
-    }
-  } catch (e) {
-    console.error('Error in dev auth cleanup', e);
-  }
+const DEFAULT_ACCOUNTS: UserAccount[] = [
+  {
+    uid: 'mansi',
+    name: 'Mansi Sharma',
+    email: 'mansi@sarthi.ai',
+    phone: '+919876543210',
+    password: 'password123',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    uid: 'mihir',
+    name: 'Mihir Jani',
+    email: 'mihir.jani0708@gmail.com',
+    phone: '+919876543211',
+    password: 'mihir123',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    uid: 'demo_user',
+    name: 'Executive Demo User',
+    email: 'demo@sarthi.ai',
+    phone: '+919800000000',
+    password: 'demo123',
+    createdAt: new Date().toISOString(),
+  },
+];
 
+function getUserRegistry(): UserAccount[] {
   try {
     const raw = localStorage.getItem(REGISTRY_KEY);
     if (raw) {
       const parsed: UserAccount[] = JSON.parse(raw);
+      let updated = false;
+      for (const defAcc of DEFAULT_ACCOUNTS) {
+        if (!parsed.some((a) => a.uid === defAcc.uid || (a.email && a.email.toLowerCase() === defAcc.email.toLowerCase()))) {
+          parsed.push(defAcc);
+          updated = true;
+        }
+      }
+      if (updated) {
+        saveUserRegistry(parsed);
+      }
       return parsed;
     }
   } catch (e) {
     console.error('Error reading user registry', e);
   }
-  return [];
+  saveUserRegistry(DEFAULT_ACCOUNTS);
+  return DEFAULT_ACCOUNTS;
 }
 
 function saveUserRegistry(accounts: UserAccount[]): void {
@@ -92,23 +121,59 @@ function saveUserRegistry(accounts: UserAccount[]): void {
   }
 }
 
-export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!(
-      localStorage.getItem('sarthi_auth_user') ||
-      sessionStorage.getItem('sarthi_auth_user') ||
-      localStorage.getItem('sarthi_active_session')
-    );
-  });
+/** Verify and retrieve valid active user session on startup */
+function getInitialActiveUserSession(): { userId: string; isAuthenticated: boolean } {
+  try {
+    const registry = getUserRegistry();
 
-  const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    return (
-      localStorage.getItem('sarthi_auth_user') ||
-      sessionStorage.getItem('sarthi_auth_user') ||
-      localStorage.getItem('sarthi_active_session') ||
-      ''
-    );
-  });
+    // 1. Check sessionStorage (Active tab session)
+    const sessionUser = sessionStorage.getItem('sarthi_auth_user') || sessionStorage.getItem('sarthi_active_session');
+    if (sessionUser && sessionUser.trim() !== '') {
+      const uid = sessionUser.trim();
+      if (uid === 'demo_user') {
+        return { userId: 'demo_user', isAuthenticated: true };
+      }
+      const acc = registry.find((a) => a.uid === uid || (a.email && a.email.toLowerCase() === uid.toLowerCase()));
+      if (acc) {
+        return { userId: acc.uid, isAuthenticated: true };
+      }
+    }
+
+    // 2. Check localStorage (Remember Me session)
+    const localUser = localStorage.getItem('sarthi_auth_user') || localStorage.getItem('sarthi_active_session');
+    if (localUser && localUser.trim() !== '') {
+      const uid = localUser.trim();
+      // PART 8 REQUIREMENT: "Never automatically log in as Demo"
+      if (uid === 'demo_user') {
+        localStorage.removeItem('sarthi_auth_user');
+        localStorage.removeItem('sarthi_active_session');
+        localStorage.removeItem('sarthi_remember_me');
+        return { userId: '', isAuthenticated: false };
+      }
+
+      const acc = registry.find((a) => a.uid === uid || (a.email && a.email.toLowerCase() === uid.toLowerCase()));
+      if (acc) {
+        return { userId: acc.uid, isAuthenticated: true };
+      }
+    }
+  } catch (e) {
+    console.error('Error checking active session:', e);
+  }
+
+  // Clear stale invalid storage keys
+  localStorage.removeItem('sarthi_auth_user');
+  localStorage.removeItem('sarthi_active_session');
+  localStorage.removeItem('sarthi_remember_me');
+  sessionStorage.removeItem('sarthi_auth_user');
+  sessionStorage.removeItem('sarthi_active_session');
+
+  return { userId: '', isAuthenticated: false };
+}
+
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const initialSession = getInitialActiveUserSession();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(initialSession.isAuthenticated);
+  const [currentUserId, setCurrentUserId] = useState<string>(initialSession.userId);
 
   // Track the user ID corresponding to the currently loaded in-memory state
   const loadedUserIdRef = useRef<string>(currentUserId);
@@ -315,6 +380,163 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
+  const loginWithGoogle = (
+    googleProfile: { email: string; name?: string; uid?: string },
+    rememberMe: boolean = true
+  ): { success: boolean; error?: string } => {
+    const cleanEmail = (googleProfile.email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Invalid Google account email.' };
+    }
+
+    const registry = getUserRegistry();
+    let account = registry.find((acc) => (acc.email || '').toLowerCase() === cleanEmail);
+
+    if (!account) {
+      const uid = googleProfile.uid || 'google_' + Date.now();
+      account = {
+        uid,
+        name: googleProfile.name || cleanEmail.split('@')[0] || 'Google User',
+        email: cleanEmail,
+        phone: '+91 98765 00000',
+        password: 'google_oauth_authenticated',
+        createdAt: new Date().toISOString(),
+      };
+      registry.push(account);
+      saveUserRegistry(registry);
+
+      const newProfile: UserProfile = {
+        uid,
+        name: account.name,
+        role: 'Executive Member',
+        email: cleanEmail,
+        phone: account.phone,
+        currentStreak: 1,
+        bestStreak: 1,
+        totalHabitsCompleted: 0,
+        avatarUrl:
+          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250',
+        themeColor: 'indigo',
+        joinDate: new Date().toISOString().split('T')[0],
+        targetDailyHabits: 5,
+        location: 'Global',
+        theme: 'light',
+        language: 'english',
+        notificationsEnabled: true,
+        needsOnboarding: false,
+      };
+      dataService.saveCurrentUser(uid, newProfile);
+    }
+
+    if (rememberMe) {
+      localStorage.setItem('sarthi_auth_user', account.uid);
+      localStorage.setItem('sarthi_active_session', account.uid);
+      sessionStorage.removeItem('sarthi_auth_user');
+      sessionStorage.removeItem('sarthi_active_session');
+    } else {
+      sessionStorage.setItem('sarthi_auth_user', account.uid);
+      sessionStorage.setItem('sarthi_active_session', account.uid);
+      localStorage.removeItem('sarthi_auth_user');
+      localStorage.removeItem('sarthi_active_session');
+    }
+
+    loadUserData(account.uid);
+    setCurrentUserId(account.uid);
+    setIsAuthenticated(true);
+
+    analyticsService.startSession(account.uid);
+    analyticsService.trackEvent('LOGIN_GOOGLE', 'Auth', account.uid);
+
+    return { success: true };
+  };
+
+  const loginWithApple = (
+    appleProfile: { email: string; name?: string; uid?: string },
+    rememberMe: boolean = true
+  ): { success: boolean; error?: string } => {
+    const cleanEmail = (appleProfile.email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Invalid Apple ID email.' };
+    }
+
+    const registry = getUserRegistry();
+    let account = registry.find((acc) => (acc.email || '').toLowerCase() === cleanEmail);
+
+    if (!account) {
+      const uid = appleProfile.uid || 'apple_' + Date.now();
+      account = {
+        uid,
+        name: appleProfile.name || cleanEmail.split('@')[0] || 'Apple User',
+        email: cleanEmail,
+        phone: '+91 98765 00000',
+        password: 'apple_oauth_authenticated',
+        createdAt: new Date().toISOString(),
+      };
+      registry.push(account);
+      saveUserRegistry(registry);
+
+      const newProfile: UserProfile = {
+        uid,
+        name: account.name,
+        role: 'Executive Member',
+        email: cleanEmail,
+        phone: account.phone,
+        currentStreak: 1,
+        bestStreak: 1,
+        totalHabitsCompleted: 0,
+        avatarUrl:
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+        themeColor: 'indigo',
+        joinDate: new Date().toISOString().split('T')[0],
+        targetDailyHabits: 5,
+        location: 'Global',
+        theme: 'light',
+        language: 'english',
+        notificationsEnabled: true,
+        needsOnboarding: false,
+      };
+      dataService.saveCurrentUser(uid, newProfile);
+    }
+
+    if (rememberMe) {
+      localStorage.setItem('sarthi_auth_user', account.uid);
+      localStorage.setItem('sarthi_active_session', account.uid);
+      sessionStorage.removeItem('sarthi_auth_user');
+      sessionStorage.removeItem('sarthi_active_session');
+    } else {
+      sessionStorage.setItem('sarthi_auth_user', account.uid);
+      sessionStorage.setItem('sarthi_active_session', account.uid);
+      localStorage.removeItem('sarthi_auth_user');
+      localStorage.removeItem('sarthi_active_session');
+    }
+
+    loadUserData(account.uid);
+    setCurrentUserId(account.uid);
+    setIsAuthenticated(true);
+
+    analyticsService.startSession(account.uid);
+    analyticsService.trackEvent('LOGIN_APPLE', 'Auth', account.uid);
+
+    return { success: true };
+  };
+
+  const loginDemoUser = (): { success: boolean } => {
+    const demoUid = 'demo_user';
+    sessionStorage.setItem('sarthi_auth_user', demoUid);
+    sessionStorage.setItem('sarthi_active_session', demoUid);
+    localStorage.removeItem('sarthi_auth_user');
+    localStorage.removeItem('sarthi_active_session');
+
+    loadUserData(demoUid);
+    setCurrentUserId(demoUid);
+    setIsAuthenticated(true);
+
+    analyticsService.startSession(demoUid);
+    analyticsService.trackEvent('LOGIN_DEMO', 'Auth', demoUid);
+
+    return { success: true };
+  };
+
   const register = (data: {
     fullName: string;
     phone: string;
@@ -476,11 +698,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       analyticsService.trackEvent('LOGOUT', 'Auth', currentUserId);
       analyticsService.endSession().catch(() => {});
     }
+    firebaseAuthService.logout().catch(() => {});
     localStorage.removeItem('sarthi_auth_user');
     localStorage.removeItem('sarthi_active_session');
+    localStorage.removeItem('sarthi_remember_me');
     sessionStorage.removeItem('sarthi_auth_user');
     sessionStorage.removeItem('sarthi_active_session');
     setIsAuthenticated(false);
+    setCurrentUserId('');
   };
 
   const switchUser = (userOrId: UserProfile | string) => {
@@ -515,6 +740,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         settings,
         updateSettings,
         login,
+        loginWithGoogle,
+        loginWithApple,
+        loginDemoUser,
         register,
         completeOnboarding,
         logout,

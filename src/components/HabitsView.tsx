@@ -8,6 +8,8 @@ import {
   BarChart3,
   Filter,
   Trash2,
+  Pencil,
+  Copy,
   X,
   Sparkles,
   Trophy,
@@ -34,11 +36,14 @@ import {
 import { Habit, HabitCategory, RoutineType } from '../types';
 import { getTodayDateString, getPastDateString } from '../data/initialData';
 import { DynamicIcon } from './DynamicIcon';
+import { SmartSuggestionInput } from './SmartSuggestionInput';
 
 interface HabitsViewProps {
   habits: Habit[];
   onToggleHabit: (habitId: string, dateStr?: string) => void;
   onAddHabit: (newHabit: Habit) => void;
+  onUpdateHabit?: (updatedHabit: Habit) => void;
+  onDuplicateHabit?: (habit: Habit) => void;
   onDeleteHabit: (habitId: string) => void;
 }
 
@@ -46,12 +51,75 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
   habits,
   onToggleHabit,
   onAddHabit,
+  onUpdateHabit,
+  onDuplicateHabit,
   onDeleteHabit,
 }) => {
   const [selectedRoutineFilter, setSelectedRoutineFilter] = useState<'all' | 'morning' | 'evening'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Edit Habit State
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRoutine, setEditRoutine] = useState<RoutineType>('morning');
+  const [editCategory, setEditCategory] = useState<HabitCategory>('Discipline');
+  const [editIcon, setEditIcon] = useState('Sparkles');
+  const [editDescription, setEditDescription] = useState('');
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleStartEdit = (habit: Habit) => {
+    setEditingHabit(habit);
+    setEditName(habit.name);
+    setEditRoutine(habit.routine || 'morning');
+    setEditCategory(habit.category || 'Discipline');
+    setEditIcon(habit.iconName || 'Sparkles');
+    setEditDescription(habit.description || '');
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingHabit || !editName.trim()) return;
+
+    const updated: Habit = {
+      ...editingHabit,
+      name: editName.trim(),
+      routine: editRoutine,
+      category: editCategory,
+      iconName: editIcon,
+      description: editDescription.trim(),
+    };
+
+    if (onUpdateHabit) {
+      onUpdateHabit(updated);
+    }
+    setEditingHabit(null);
+    showToast('Habit updated successfully!');
+  };
+
+  const handleDuplicate = (habit: Habit) => {
+    if (onDuplicateHabit) {
+      onDuplicateHabit(habit);
+    } else {
+      const copy: Habit = {
+        ...habit,
+        id: `habit-${Date.now()}`,
+        name: `${habit.name} (Copy)`,
+        streak: 0,
+        bestStreak: habit.streak || 0,
+        completedDates: {},
+        isCustom: true,
+      };
+      onAddHabit(copy);
+    }
+    showToast('Habit duplicated!');
+  };
   const [expandedRoutine, setExpandedRoutine] = useState<{ morning: boolean; evening: boolean }>({
     morning: true,
     evening: true,
@@ -760,6 +828,8 @@ interface HabitCardProps {
   habit: Habit;
   todayStr: string;
   onToggleHabit: (habitId: string, dateStr?: string) => void;
+  onStartEdit: (habit: Habit) => void;
+  onDuplicate: (habit: Habit) => void;
   onDeleteHabit: (habitId: string) => void;
   routineType: RoutineType;
 }
@@ -768,6 +838,8 @@ const HabitCard: React.FC<HabitCardProps> = ({
   habit,
   todayStr,
   onToggleHabit,
+  onStartEdit,
+  onDuplicate,
   onDeleteHabit,
   routineType,
 }) => {
@@ -925,7 +997,7 @@ const HabitCard: React.FC<HabitCardProps> = ({
           </div>
         </div>
 
-        {/* Right Toggle / Delete Button */}
+        {/* Right Toggle / Edit / Duplicate / Delete Buttons */}
         <div className="flex sm:flex-col items-center justify-between sm:justify-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
           <button
             onClick={() => onToggleHabit(habit.id)}
@@ -948,15 +1020,29 @@ const HabitCard: React.FC<HabitCardProps> = ({
             )}
           </button>
 
-          {habit.isCustom && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onStartEdit(habit)}
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+              title="Edit Habit"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onDuplicate(habit)}
+              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer"
+              title="Duplicate Habit"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={() => onDeleteHabit(habit.id)}
-              className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-              title="Delete Custom Habit"
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+              title="Delete Habit"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>

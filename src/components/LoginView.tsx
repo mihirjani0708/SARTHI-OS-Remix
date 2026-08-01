@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useUser } from '../context/UserContext';
 import { PhoneInput } from './PhoneInput';
 import { SarthiLogo } from './SarthiLogo';
+import { firebaseAuthService } from '../services/firebase/firebaseAuthService';
 import {
   ShieldCheck,
   Lock,
@@ -21,12 +22,14 @@ import {
   ChevronLeft,
   FileText,
   Shield,
+  LogIn,
+  Layers,
 } from 'lucide-react';
 
 type AuthViewMode = 'welcome' | 'signin' | 'signup';
 
 export const LoginView: React.FC = () => {
-  const { login, register } = useUser();
+  const { login, loginWithGoogle, loginWithApple, loginDemoUser, register } = useUser();
   const [viewMode, setViewMode] = useState<AuthViewMode>('welcome');
 
   // Sign In state
@@ -42,6 +45,18 @@ export const LoginView: React.FC = () => {
   const [signUpPassword, setSignUpPassword] = useState('');
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState('');
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
+
+  // Google Auth Modal State
+  const [showGoogleAuthModal, setShowGoogleAuthModal] = useState(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState('mihir.jani0708@gmail.com');
+  const [googlePasswordInput, setGooglePasswordInput] = useState('');
+  const [googleAuthError, setGoogleAuthError] = useState<string | null>(null);
+
+  // Apple Auth Modal State
+  const [showAppleAuthModal, setShowAppleAuthModal] = useState(false);
+  const [appleEmailInput, setAppleEmailInput] = useState('');
+  const [applePasswordInput, setApplePasswordInput] = useState('');
+  const [appleAuthError, setAppleAuthError] = useState<string | null>(null);
 
   // Forgot Password state
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -59,8 +74,12 @@ export const LoginView: React.FC = () => {
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsLoading(true);
+    if (!signInInput.trim() || !signInPassword) {
+      setError('Please enter your email or mobile number and password.');
+      return;
+    }
 
+    setIsLoading(true);
     const result = login(signInInput, signInPassword, rememberMe);
     setIsLoading(false);
     if (!result.success && result.error) {
@@ -99,26 +118,90 @@ export const LoginView: React.FC = () => {
   };
 
   // Handle Google Sign In
-  const handleGoogleSignIn = () => {
+  const handleGoogleBtnClick = async () => {
     setError(null);
     setIsLoading(true);
-    // Use default account or prompt
-    setTimeout(() => {
-      const result = login('mihir.jani0708@gmail.com', 'mihir123', true);
-      setIsLoading(false);
-      if (!result.success) {
-        // Fallback if mihir isn't registered yet, register Mihir directly
-        const regRes = register({
-          fullName: 'Mihir Jani',
-          phone: '+919876543210',
-          email: 'mihir.jani0708@gmail.com',
-          password: 'google_auth_sarthi',
-        });
-        if (!regRes.success && regRes.error) {
-          setError(regRes.error);
+    try {
+      const user = await firebaseAuthService.signInWithGoogle();
+      if (user && user.email) {
+        const res = loginWithGoogle({ email: user.email, name: user.displayName || undefined, uid: user.uid }, rememberMe);
+        setIsLoading(false);
+        if (!res.success && res.error) {
+          setError(res.error);
         }
+        return;
       }
-    }, 600);
+    } catch (err) {
+      console.log('Firebase popup fallback to Google Auth Modal:', err);
+    }
+    setIsLoading(false);
+    setGoogleAuthError(null);
+    setShowGoogleAuthModal(true);
+  };
+
+  const handleGoogleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setGoogleAuthError(null);
+    const cleanEmail = googleEmailInput.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setGoogleAuthError('Please enter a valid Google Account email.');
+      return;
+    }
+    if (!googlePasswordInput || googlePasswordInput.length < 4) {
+      setGoogleAuthError('Please enter your Google Account password.');
+      return;
+    }
+
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      const res = loginWithGoogle({ email: cleanEmail, name: cleanEmail.split('@')[0] }, rememberMe);
+      if (res.success) {
+        setShowGoogleAuthModal(false);
+        setGooglePasswordInput('');
+      } else {
+        setGoogleAuthError(res.error || 'Google Authentication failed.');
+      }
+    }, 500);
+  };
+
+  // Handle Apple Sign In
+  const handleAppleBtnClick = () => {
+    setError(null);
+    setAppleAuthError(null);
+    setShowAppleAuthModal(true);
+  };
+
+  const handleAppleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppleAuthError(null);
+    const cleanEmail = appleEmailInput.trim().toLowerCase();
+    if (!cleanEmail || (!cleanEmail.includes('@') && cleanEmail.length < 5)) {
+      setAppleAuthError('Please enter a valid Apple ID (email or phone).');
+      return;
+    }
+    if (!applePasswordInput || applePasswordInput.length < 4) {
+      setAppleAuthError('Please enter your Apple ID password or passcode.');
+      return;
+    }
+
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      const res = loginWithApple({ email: cleanEmail, name: cleanEmail.split('@')[0] }, rememberMe);
+      if (res.success) {
+        setShowAppleAuthModal(false);
+        setApplePasswordInput('');
+      } else {
+        setAppleAuthError(res.error || 'Apple ID Authentication failed.');
+      }
+    }, 500);
+  };
+
+  // Handle Continue as Demo
+  const handleContinueAsDemo = () => {
+    setError(null);
+    loginDemoUser();
   };
 
   // Handle Forgot Password submission
@@ -239,8 +322,21 @@ export const LoginView: React.FC = () => {
                 <span>Create New Account</span>
               </button>
 
+              {/* GUEST DEMO MODE ACTION */}
+              <button
+                type="button"
+                onClick={handleContinueAsDemo}
+                className="w-full py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Continue as Demo Mode</span>
+                <span className="px-1.5 py-0.5 bg-amber-400/20 text-[9px] uppercase font-extrabold tracking-wider rounded text-amber-200">
+                  Guest
+                </span>
+              </button>
+
               {/* SOCIAL LOGIN SECTION */}
-              <div className="pt-3 space-y-3">
+              <div className="pt-2 space-y-3">
                 <div className="relative flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-800" />
@@ -254,7 +350,7 @@ export const LoginView: React.FC = () => {
                   {/* GOOGLE */}
                   <button
                     type="button"
-                    onClick={handleGoogleSignIn}
+                    onClick={handleGoogleBtnClick}
                     disabled={isLoading}
                     className="py-3 px-3 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-2xl font-semibold text-xs text-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer group"
                     title="Sign in with Google"
@@ -280,22 +376,18 @@ export const LoginView: React.FC = () => {
                     <span className="hidden sm:inline">Google</span>
                   </button>
 
-                  {/* APPLE (FUTURE READY) */}
+                  {/* APPLE */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setError('Apple authentication is future ready. Please sign in with Email or Google.');
-                    }}
-                    className="py-3 px-3 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-2xl font-semibold text-xs text-slate-300 flex items-center justify-center gap-1.5 transition-all cursor-pointer relative"
-                    title="Apple Sign In (Future Ready)"
+                    onClick={handleAppleBtnClick}
+                    disabled={isLoading}
+                    className="py-3 px-3 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-2xl font-semibold text-xs text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer relative"
+                    title="Sign in with Apple ID"
                   >
-                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 fill-current shrink-0 text-white" viewBox="0 0 24 24">
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.13c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z" />
                     </svg>
                     <span className="hidden sm:inline">Apple</span>
-                    <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 bg-blue-500/20 border border-blue-400/30 text-[8px] font-bold text-blue-300 rounded-full">
-                      Soon
-                    </span>
                   </button>
 
                   {/* EMAIL */}
@@ -668,6 +760,187 @@ export const LoginView: React.FC = () => {
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* GOOGLE SIGN IN AUTH MODAL */}
+      {showGoogleAuthModal && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setShowGoogleAuthModal(false);
+                setGoogleAuthError(null);
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-white rounded-2xl shadow-sm">
+                <svg className="w-6 h-6" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.2 9 5 12 5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.6 14.8c-.3-.8-.4-1.8-.4-2.8s.1-2 .4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.2-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-white text-base">Sign in with Google</h3>
+                <p className="text-xs text-slate-400">Authenticate your Google Account</p>
+              </div>
+            </div>
+
+            {googleAuthError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{googleAuthError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleGoogleModalSubmit} className="space-y-3.5 pt-1">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-300 block">Google Email</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="user@gmail.com"
+                    value={googleEmailInput}
+                    onChange={(e) => setGoogleEmailInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-300 block">Google Account Password</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Password"
+                    value={googlePasswordInput}
+                    onChange={(e) => setGooglePasswordInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-2xl font-bold text-xs shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
+              >
+                {isLoading ? (
+                  <span>Authenticating...</span>
+                ) : (
+                  <>
+                    <span>Verify & Authenticate Google Account</span>
+                    <ArrowRight className="w-4 h-4 text-slate-900" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* APPLE SIGN IN AUTH MODAL */}
+      {showAppleAuthModal && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setShowAppleAuthModal(false);
+                setAppleAuthError(null);
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-white text-slate-950 rounded-2xl shadow-sm">
+                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.13c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-white text-base">Sign in with Apple ID</h3>
+                <p className="text-xs text-slate-400">Authenticate with Apple ID Security</p>
+              </div>
+            </div>
+
+            {appleAuthError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{appleAuthError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleAppleModalSubmit} className="space-y-3.5 pt-1">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-300 block">Apple ID (Email or Phone)</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="appleid@icloud.com"
+                    value={appleEmailInput}
+                    onChange={(e) => setAppleEmailInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-300 block">Password or Passcode</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Apple ID Password"
+                    value={applePasswordInput}
+                    onChange={(e) => setApplePasswordInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-2xl font-bold text-xs shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
+              >
+                {isLoading ? (
+                  <span>Authenticating...</span>
+                ) : (
+                  <>
+                    <span>Sign In with Apple ID</span>
+                    <ArrowRight className="w-4 h-4 text-slate-900" />
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         </div>
       )}

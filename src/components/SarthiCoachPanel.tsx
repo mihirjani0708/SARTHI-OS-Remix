@@ -39,6 +39,7 @@ import { Task, Meeting, Habit, UserProfile, AICoachMessage, NavTab } from '../ty
 import { getTodayDateString } from '../data/initialData';
 import { useUser } from '../context/UserContext';
 import { aiActionService } from '../services/ai/aiActionService';
+import { conversationPipeline } from '../services/conversation';
 import { voiceController, VoiceState } from '../services/voice/voiceController';
 import { SupportedVoiceLanguage } from '../services/voice/speechRecognitionService';
 import { VoiceButton } from './voice/VoiceButton';
@@ -335,8 +336,12 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
     textToSend?: string,
     options?: { isVoice?: boolean; spokenLang?: SupportedVoiceLanguage }
   ) => {
-    const text = (textToSend || inputQuery).trim();
-    if (!text) return;
+    const rawText = (textToSend || inputQuery).trim();
+    if (!rawText) return;
+
+    // Apply auto-correct service pipeline on user input (speech/typing/transliteration)
+    const { correctedText } = conversationPipeline.processUserInput(rawText);
+    const textToUse = correctedText || rawText;
 
     // Switch to chat tab when sending a prompt
     setActiveWorkspaceTab('chat');
@@ -344,7 +349,7 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
     const userMsg: AICoachMessage = {
       id: `user_${Date.now()}`,
       sender: 'user',
-      text: text,
+      text: textToUse,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -353,7 +358,7 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
 
     setTimeout(() => {
       // 1. Try AI Action Engine parsing
-      const parsedIntent = aiActionService.parseIntent((user as any).id || user.uid || 'mansi', text);
+      const parsedIntent = aiActionService.parseIntent((user as any).id || user.uid || 'mansi', textToUse);
       const isActionCommand = ['create', 'complete', 'remind', 'reschedule', 'open', 'navigate', 'delete'].includes(parsedIntent.intent);
 
       let responseText = '';
@@ -361,7 +366,7 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
       if (isActionCommand) {
         const actionResult = aiActionService.executeAction((user as any).id || user.uid || 'mansi', parsedIntent);
         
-        responseText = `⚡ **AI Action Executed:**\n\n${actionResult.message}`;
+        responseText = actionResult.message;
 
         // Sync local React state if navigation or tasks/habits modified
         if (actionResult.navTarget && onSelectTab) {
@@ -374,13 +379,16 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
         const refreshedHabits = dataService.getHabits((user as any).id || user.uid || 'mansi');
         setHabits(refreshedHabits);
       } else {
-        responseText = generateLocalResponse(text);
+        responseText = generateLocalResponse(textToUse);
       }
+
+      // Apply Conversation Cleanup Layer (Formatter + Natural Language Rewriter)
+      const humanizedResponse = conversationPipeline.processAIResponse(responseText);
 
       const aiMsg: AICoachMessage = {
         id: `ai_${Date.now()}`,
         sender: 'sarthi',
-        text: responseText,
+        text: humanizedResponse,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -389,7 +397,7 @@ export const SarthiCoachPanel: React.FC<SarthiCoachPanelProps> = ({
       if ((options?.isVoice || autoReadAloud) && user.voiceSettings?.enabled !== false) {
         const vSettings = user.voiceSettings;
         voiceController.speakResponse(
-          responseText,
+          humanizedResponse,
           options?.spokenLang || voiceState.detectedLanguage || vSettings?.preferredLanguage,
           {
             speed: vSettings?.speed,

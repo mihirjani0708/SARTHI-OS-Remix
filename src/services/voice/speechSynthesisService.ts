@@ -10,6 +10,7 @@
  */
 
 import { VoiceLanguage, VoiceSpeed } from '../../types';
+import { voiceSanitizer } from '../conversation/VoiceSanitizer';
 
 export interface SynthesisOptions {
   language?: VoiceLanguage | string;
@@ -90,41 +91,7 @@ export class SpeechSynthesisService {
    * Clean text for natural speech (strip Markdown symbols, code blocks, URLs, emojis, and expand numbers/dates/times).
    */
   public cleanTextForSpeech(text: string): string {
-    if (!text) return '';
-
-    let cleaned = text
-      .replace(/```[\s\S]*?```/g, ' code block skipped. ')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/#+\s+/g, '')
-      .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1')
-      .replace(/^[•*\-\+]\s+/gm, '')
-      .replace(/https?:\/\/\S+/g, '')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-
-    // Strip Emojis & Symbol pictographs to prevent TTS engine stutter
-    cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
-
-    // Format currencies, percentages, and common mathematical/symbolic tokens
-    cleaned = cleaned
-      .replace(/(\d+)%/g, '$1 percent')
-      .replace(/\$(\d+(\.\d+)?)/g, '$1 dollars')
-      .replace(/₹(\d+(\.\d+)?)/g, '$1 rupees')
-      .replace(/&/g, ' and ')
-      .replace(/@/g, ' at ');
-
-    // Read dates naturally e.g. YYYY-MM-DD -> Month DD, YYYY
-    cleaned = cleaned.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_m, y, m, d) => {
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      const monthName = months[parseInt(m, 10) - 1] || m;
-      return `${monthName} ${parseInt(d, 10)}, ${y}`;
-    });
-
-    cleaned = cleaned
-      .replace(/\n+/g, '. ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    return cleaned;
+    return voiceSanitizer.sanitizeForSpeech(text);
   }
 
   /**

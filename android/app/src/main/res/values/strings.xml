@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SARTHI</string>
+    <string name="title_activity_main">SARTHI</string>
+    <string name="package_name">com.sarthi.app</string>
+    <string name="custom_url_scheme">com.sarthi.app</string>
+</resources>

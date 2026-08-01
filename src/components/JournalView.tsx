@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { JournalEntry } from '../types';
 import { getTodayDateString } from '../data/initialData';
+import { SmartSuggestionInput } from './SmartSuggestionInput';
 
 interface JournalViewProps {
   journalEntries: Record<string, JournalEntry>;
@@ -207,53 +208,48 @@ export const JournalView: React.FC<JournalViewProps> = ({
 
         {/* Gratitude & Prayer Section */}
         <div className="bg-white rounded-2xl p-4 border border-blue-100 shadow-2xs space-y-2.5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-1">
             <Heart className="w-4 h-4 text-rose-500 fill-rose-100 shrink-0" />
             <h3 className="font-bold text-gray-900 text-sm">3 Things I Am Grateful For</h3>
           </div>
-          <input
-            type="text"
-            placeholder="1. Grateful for..."
+          <SmartSuggestionInput
+            type="gratitude"
             value={gratitude1}
-            onChange={(e) => setGratitude1(e.target.value)}
-            className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:border-blue-600 outline-none min-h-[42px]"
+            onChange={setGratitude1}
+            placeholder="1. Grateful for..."
           />
-          <input
-            type="text"
-            placeholder="2. Grateful for..."
+          <SmartSuggestionInput
+            type="gratitude"
             value={gratitude2}
-            onChange={(e) => setGratitude2(e.target.value)}
-            className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:border-blue-600 outline-none min-h-[42px]"
+            onChange={setGratitude2}
+            placeholder="2. Grateful for..."
           />
-          <input
-            type="text"
-            placeholder="3. Grateful for..."
+          <SmartSuggestionInput
+            type="gratitude"
             value={gratitude3}
-            onChange={(e) => setGratitude3(e.target.value)}
-            className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:border-blue-600 outline-none min-h-[42px]"
+            onChange={setGratitude3}
+            placeholder="3. Grateful for..."
           />
         </div>
 
         {/* Daily Wins & Manifestation */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl p-4 border border-blue-100 shadow-2xs space-y-2.5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-1">
               <Award className="w-4 h-4 text-amber-500 shrink-0" />
               <h3 className="font-bold text-gray-900 text-sm">Today's Key Wins</h3>
             </div>
-            <input
-              type="text"
-              placeholder="Win #1..."
+            <SmartSuggestionInput
+              type="win"
               value={win1}
-              onChange={(e) => setWin1(e.target.value)}
-              className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:border-blue-600 outline-none min-h-[42px]"
+              onChange={setWin1}
+              placeholder="Win #1..."
             />
-            <input
-              type="text"
-              placeholder="Win #2..."
+            <SmartSuggestionInput
+              type="win"
               value={win2}
-              onChange={(e) => setWin2(e.target.value)}
-              className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:border-blue-600 outline-none min-h-[42px]"
+              onChange={setWin2}
+              placeholder="Win #2..."
             />
           </div>
 
@@ -274,16 +270,15 @@ export const JournalView: React.FC<JournalViewProps> = ({
 
         {/* Reflections & Free Form Text */}
         <div className="bg-white rounded-2xl p-4 border border-blue-100 shadow-2xs space-y-2.5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-1">
             <Lightbulb className="w-4 h-4 text-amber-500 shrink-0" />
             <h3 className="font-bold text-gray-900 text-sm">Key Learnings & Deep Journal</h3>
           </div>
-          <input
-            type="text"
-            placeholder="Main lesson learned today..."
+          <SmartSuggestionInput
+            type="learning"
             value={learnings}
-            onChange={(e) => setLearnings(e.target.value)}
-            className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:border-blue-600 outline-none min-h-[42px]"
+            onChange={setLearnings}
+            placeholder="Main lesson learned today..."
           />
           <textarea
             rows={5}
