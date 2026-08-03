@@ -83,7 +83,7 @@ ${prompt || "Provide today's executive life summary and actionable coaching."}`;
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = typeof __dirname !== "undefined" ? __dirname : import_path.default.join(process.cwd(), "dist");
+    const distPath = import_path.default.join(process.cwd(), "dist");
     app.use(import_express.default.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(import_path.default.join(distPath, "index.html"));
