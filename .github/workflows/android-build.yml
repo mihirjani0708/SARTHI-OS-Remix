@@ -16,14 +16,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Setup Bun
+        if: hashFiles('bun.lock', 'bun.lockb') != ''
+        uses: oven-sh/setup-bun@v2
+
       - name: Setup Node.js (v22)
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Setup Bun
-        if: hashFiles('bun.lock', 'bun.lockb') != ''
-        uses: oven-sh/setup-bun@v2
+      - name: Check Node.js Version
+        run: node -v
+
+      - name: Check npm Version
+        run: npm -v
+
+      - name: Check Capacitor Version
+        run: npx cap --version || true
 
       - name: Setup Java JDK (v17)
         uses: actions/setup-java@v4
@@ -52,12 +61,7 @@ jobs:
           fi
 
       - name: Sync Capacitor Android
-        run: |
-          if [ -f "bun.lock" ] || [ -f "bun.lockb" ]; then
-            bunx cap sync android
-          else
-            npx cap sync android
-          fi
+        run: npx cap sync android
 
       - name: Grant Execute Permission for Gradle Wrapper
         run: chmod +x android/gradlew
