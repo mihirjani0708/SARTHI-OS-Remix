@@ -12,6 +12,16 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Direct ZIP download route
+  app.get("/SARTHI-OS-Remix-Complete.zip", (req, res) => {
+    const zipPath = path.join(process.cwd(), "SARTHI-OS-Remix-Complete.zip");
+    res.download(zipPath, "SARTHI-OS-Remix-Complete.zip", (err) => {
+      if (err && !res.headersSent) {
+        res.status(404).send("ZIP package not found.");
+      }
+    });
+  });
+
   // AI Coach API Endpoint using Gemini 2.5 Flash
   app.post("/api/coach", async (req, res) => {
     try {
